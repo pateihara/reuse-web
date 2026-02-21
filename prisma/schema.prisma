@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ItemStatus {
+  ACTIVE
+  PAUSED
+  DELETED
+}
+
+enum TradeStatus {
+  PENDING       // proposta enviada (aguardando owner aceitar/recusar)
+  CHAT_ACTIVE   // owner aceitou e chat liberado
+  TRADE_MARKED  // troca combinada/marcada
+  DONE          // concluída (ambos confirmaram)
+  CANCELED      // cancelada (recusada ou cancelada)
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // bcrypt hash
+  username  String?  @unique
+  avatarUrl String?
+  city      String?
+  state     String?
+
+  items     Item[]
+  messages  Message[]
+  favorites Favorite[]
+
+  tradesAsRequester Trade[] @relation("TradeRequester")
+  tradesAsOwner     Trade[] @relation("TradeOwner")
+
+  reviewsGiven    Review[] @relation("ReviewsGiven")
+  reviewsReceived Review[] @relation("ReviewsReceived")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Item {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  category    String?
+  size        String?
+  condition   String?
+  status      ItemStatus @default(ACTIVE)
+
+  city        String?
+  state       String?
+  lat         Float?
+  lng         Float?
+
+  ownerId     String
+  owner       User       @relation(fields: [ownerId], references: [id])
+
+  images      ItemImage[]
+  favorites   Favorite[]
+
+  tradesOffered Trade[] @relation("TradeOfferedItem")
+  tradesWanted  Trade[] @relation("TradeWantedItem")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ItemImage {
+  id     String @id @default(cuid())
+  url    String
+  order  Int    @default(0)
+
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+model Trade {
+  id            String      @id @default(cuid())
+
+  requesterId   String
+  requester     User        @relation("TradeRequester", fields: [requesterId], references: [id])
+
+  ownerId       String
+  owner         User        @relation("TradeOwner", fields: [ownerId], references: [id])
+
+  offeredItemId String
+  offeredItem   Item        @relation("TradeOfferedItem", fields: [offeredItemId], references: [id])
+
+  wantedItemId  String
+  wantedItem    Item        @relation("TradeWantedItem", fields: [wantedItemId], references: [id])
+
+  status          TradeStatus @default(PENDING)
+
+  // Aceite/recusa do owner:
+  // null = aguardando, true = aceitou, false = recusou
+  acceptedByOwner Boolean?
+
+  // Confirmação de conclusão por cada lado:
+  requesterDone   Boolean     @default(false)
+  ownerDone       Boolean     @default(false)
+
+  scheduledAt    DateTime?    // quando marcar troca (opcional)
+  completedAt    DateTime?    // quando finalizar (ambos confirmaram)
+
+  messages       Message[]
+  review         Review?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requesterId])
+  @@index([ownerId])
+  @@index([status])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  tradeId   String
+  trade     Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([tradeId])
+  @@index([senderId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+
+  tradeId    String   @unique
+  trade      Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  reviewerId String
+  reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+
+  reviewedId String
+  reviewed   User     @relation("ReviewsReceived", fields: [reviewedId], references: [id])
+
+  rating     Int
+  comment    String?
+  images     ReviewImage[]
+
+  createdAt  DateTime @default(now())
+
+  @@index([reviewerId])
+  @@index([reviewedId])
+}
+
+model ReviewImage {
+  id       String @id @default(cuid())
+  url      String
+  order    Int    @default(0)
+
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
+model Favorite {
+  userId String
+  itemId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, itemId])
+  @@index([itemId])
+}
