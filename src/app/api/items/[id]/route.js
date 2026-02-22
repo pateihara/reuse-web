@@ -1,4 +1,7 @@
 // src/app/api/items/[id]/route.js
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 
 const STATUS_ALLOWED = new Set(["ACTIVE", "PAUSED", "DELETED"]);

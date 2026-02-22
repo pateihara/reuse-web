@@ -1,4 +1,7 @@
 // src/app/api/trades/route.js
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 

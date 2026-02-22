@@ -1,4 +1,6 @@
 //src/app/api/my-chats/route.js
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 

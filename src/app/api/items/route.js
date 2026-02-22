@@ -1,5 +1,7 @@
 // src/app/api/items/route.js
-// src/app/api/items/route.js
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 
