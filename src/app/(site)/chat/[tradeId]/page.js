@@ -1,10 +1,17 @@
-//src/app/(site)/chat/[tradeId]/page.js
+// src/app/(site)/chat/[tradeId]/page.js
 import { prisma } from "@/lib/prisma";
 import ChatClient from "./ChatClient";
 import TradeStatusActions from "./TradeStatusActions";
+import ReviewCTA from "./ReviewCTA";
 
 export default async function ChatPage({ params }) {
-  const { tradeId } = await params;
+  // Next 16: params pode vir como Promise
+  const p = await params;
+  const tradeId = p?.tradeId;
+
+  if (!tradeId) {
+    return <div className="p-6">tradeId ausente na rota.</div>;
+  }
 
   const trade = await prisma.trade.findUnique({
     where: { id: tradeId },
@@ -20,8 +27,9 @@ export default async function ChatPage({ params }) {
       requester: { select: { id: true, name: true } },
       owner: { select: { id: true, name: true } },
 
-      // campos do fluxo novo (aceite + confirmações)
-      // (não precisa de select separado, porque o include já traz tudo do Trade)
+      // se você quiser impedir CTA de avaliação quando já existe review,
+      // pode incluir review aqui depois (opcional):
+      // review: { select: { id: true } },
     },
   });
 
@@ -29,7 +37,7 @@ export default async function ChatPage({ params }) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-4">
-      {/* Card de resumo + ações */}
+      {/* Resumo + ações */}
       <div className="card bg-base-100 shadow">
         <div className="card-body">
           <div className="flex flex-col gap-2">
@@ -65,6 +73,14 @@ export default async function ChatPage({ params }) {
           </div>
         </div>
       </div>
+
+      {/* CTA de avaliação (aparece só quando DONE + logado) */}
+      <ReviewCTA
+        tradeId={trade.id}
+        tradeStatus={trade.status}
+        requesterId={trade.requesterId}
+        ownerId={trade.ownerId}
+      />
 
       {/* Chat */}
       <ChatClient tradeId={trade.id} initialMessages={trade.messages} />

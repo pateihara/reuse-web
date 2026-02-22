@@ -13,13 +13,23 @@ export async function PATCH(req, ctx) {
 
   const trade = await prisma.trade.findUnique({
     where: { id },
-    select: { id: true, requesterId: true, ownerId: true, status: true, acceptedByOwner: true, requesterDone: true, ownerDone: true },
+    select: {
+      id: true,
+      requesterId: true,
+      ownerId: true,
+      status: true,
+      acceptedByOwner: true,
+      requesterDone: true,
+      ownerDone: true,
+      offeredItemId: true,  // <-- necessário
+      wantedItemId: true,   // <-- necessário
+    },
   });
 
   if (!trade) return new Response("Trade não encontrado", { status: 404 });
 
-  const isRequester = userId === trade.requesterId;
-  const isOwner = userId === trade.ownerId;
+  const isRequester = String(userId) === String(trade.requesterId);
+  const isOwner = String(userId) === String(trade.ownerId);
 
   if (!isRequester && !isOwner) {
     return new Response("Você não participa desse trade", { status: 403 });
@@ -49,7 +59,6 @@ export async function PATCH(req, ctx) {
   }
 
   if (action === "CANCEL") {
-    // qualquer um pode cancelar se ainda não estiver DONE
     if (trade.status === "DONE") return new Response("Trade já concluído", { status: 400 });
 
     const updated = await prisma.trade.update({
@@ -60,7 +69,6 @@ export async function PATCH(req, ctx) {
   }
 
   if (action === "CONFIRM_DONE") {
-    // só faz sentido se já foi aceito
     if (trade.status !== "CHAT_ACTIVE" && trade.status !== "TRADE_MARKED") {
       return new Response("Trade ainda não está ativo", { status: 400 });
     }
@@ -75,20 +83,30 @@ export async function PATCH(req, ctx) {
       select: { id: true, requesterDone: true, ownerDone: true, status: true },
     });
 
-    // se ambos confirmaram -> DONE
+    // se ambos confirmaram -> DONE + marcar itens como TRADED
     if (partial.requesterDone && partial.ownerDone) {
-      const updated = await prisma.trade.update({
-        where: { id },
-        data: { status: "DONE", completedAt: new Date() },
-      });
-      return Response.json(updated);
+      const [updatedTrade] = await prisma.$transaction([
+        prisma.trade.update({
+          where: { id },
+          data: { status: "DONE", completedAt: new Date() },
+        }),
+        prisma.item.update({
+          where: { id: trade.offeredItemId },
+          data: { status: "TRADED" },
+        }),
+        prisma.item.update({
+          where: { id: trade.wantedItemId },
+          data: { status: "TRADED" },
+        }),
+      ]);
+
+      return Response.json(updatedTrade);
     }
 
     return Response.json(partial);
   }
 
   if (action === "MARK_MEET") {
-    // opcional: marcar troca (combinar)
     if (trade.status !== "CHAT_ACTIVE") return new Response("Trade não está ativo", { status: 400 });
 
     const updated = await prisma.trade.update({
