@@ -2,18 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
-
-function subscribeStorage(cb) {
-  window.addEventListener("storage", cb);
-  return () => window.removeEventListener("storage", cb);
-}
-function getSnapshot() {
-  return localStorage.getItem("reuse_user_id") || "";
-}
-function getServerSnapshot() {
-  return "";
-}
+import { useState } from "react";
 
 export default function TradeStatusActions({
   tradeId,
@@ -23,10 +12,9 @@ export default function TradeStatusActions({
   acceptedByOwner,
   requesterDone,
   ownerDone,
+  userId,
 }) {
   const router = useRouter();
-  const userId = useSyncExternalStore(subscribeStorage, getSnapshot, getServerSnapshot);
-
   const [loading, setLoading] = useState(false);
 
   const isRequester = userId && String(userId) === String(requesterId);
@@ -37,8 +25,10 @@ export default function TradeStatusActions({
     const res = await fetch(`/api/trades/${tradeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, userId: String(userId) }),
+      body: JSON.stringify({ action }),
+      credentials: "include",
     });
+
     if (!res.ok) {
       alert(await res.text());
       setLoading(false);
@@ -48,31 +38,17 @@ export default function TradeStatusActions({
     router.refresh();
   }
 
-  // Banner de status (texto do protótipo)
   let banner = null;
 
   if (currentStatus === "PENDING") {
     if (isRequester) banner = "Aguardando resposta do usuário…";
     if (isOwner) banner = "Você recebeu uma solicitação de troca.";
   }
+  if (currentStatus === "CHAT_ACTIVE") banner = "Troca aceita. Use o chat para combinar detalhes.";
+  if (currentStatus === "TRADE_MARKED") banner = "Troca marcada. Confirme quando concluir.";
+  if (currentStatus === "DONE") banner = "Troca concluída ✅";
+  if (currentStatus === "CANCELED") banner = "Troca cancelada.";
 
-  if (currentStatus === "CHAT_ACTIVE") {
-    banner = "Troca aceita. Use o chat para combinar detalhes.";
-  }
-
-  if (currentStatus === "TRADE_MARKED") {
-    banner = "Troca marcada. Confirme quando concluir.";
-  }
-
-  if (currentStatus === "DONE") {
-    banner = "Troca concluída ✅";
-  }
-
-  if (currentStatus === "CANCELED") {
-    banner = "Troca cancelada.";
-  }
-
-  // Botões condicionais
   const canAcceptReject = currentStatus === "PENDING" && isOwner;
   const canChatFlow = currentStatus === "CHAT_ACTIVE" || currentStatus === "TRADE_MARKED";
 
@@ -103,7 +79,11 @@ export default function TradeStatusActions({
 
         {canChatFlow ? (
           <>
-            <button className="btn btn-sm btn-outline" onClick={() => act("MARK_MEET")} disabled={loading || currentStatus !== "CHAT_ACTIVE"}>
+            <button
+              className="btn btn-sm btn-outline"
+              onClick={() => act("MARK_MEET")}
+              disabled={loading || currentStatus !== "CHAT_ACTIVE"}
+            >
               Marcar troca
             </button>
 

@@ -1,15 +1,16 @@
-//src/app/api/my-items/route.js
+// src/app/api/my-items/route.js
 import { prisma } from "@/lib/prisma";
+import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 
 export async function GET(req) {
+  const userId = getUserIdFromRequest(req);
+  if (!userId) return new Response("Não autenticado", { status: 401 });
+
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
 
   // filtros opcionais
   const itemStatus = searchParams.get("itemStatus"); // ACTIVE | PAUSED | TRADED
   const negotiation = searchParams.get("negotiation"); // LIVRE | EM_NEGOCIACAO | CONCLUIDO
-
-  if (!userId) return new Response("userId é obrigatório", { status: 400 });
 
   const where = {
     ownerId: userId,
@@ -47,10 +48,7 @@ export async function GET(req) {
     if (done) negotiationStatus = "CONCLUIDO";
     else if (inNegotiation) negotiationStatus = "EM_NEGOCIACAO";
 
-    return {
-      ...it,
-      negotiationStatus,
-    };
+    return { ...it, negotiationStatus };
   });
 
   const filtered =

@@ -1,35 +1,42 @@
-//src/app/(site)/avaliar-usuario/[userId]/page.js
-import { prisma } from "@/lib/prisma";
+// src/app/(site)/avaliar-usuario/[userId]/page.js
+import Link from "next/link";
+import { getUserIdFromCookies } from "@/lib/getUserFromCookies";
 import ReviewFormClient from "./ReviewFormClient";
 
 export default async function AvaliarUsuarioPage({ params, searchParams }) {
-  const { userId } = await params;
+  const p = await params;
   const sp = await searchParams;
-  const tradeId = sp?.tradeId || "";
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, name: true, username: true, avatarUrl: true, city: true, state: true },
-  });
+  const reviewedUserId = p?.userId;
+  const tradeId = sp?.tradeId;
 
-  if (!user) return <div className="p-6">Usuário não encontrado.</div>;
+  if (!reviewedUserId) return <div className="p-6">userId ausente.</div>;
+  if (!tradeId) return <div className="p-6">tradeId ausente na URL.</div>;
+
+  const userId = await getUserIdFromCookies();
+
+  if (!userId) {
+    const current = `/avaliar-usuario/${reviewedUserId}?tradeId=${tradeId}`;
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        <div className="alert flex items-center justify-between">
+          <span>Você precisa estar logado para avaliar.</span>
+          <Link className="btn btn-sm btn-primary" href={`/login?redirect=${encodeURIComponent(current)}`}>
+            Ir para login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
-      <div className="card bg-base-100 shadow">
-        <div className="card-body">
-          <h1 className="text-2xl font-bold">Avaliar usuário</h1>
-          <p className="opacity-80">
-            Você está avaliando <span className="font-semibold">{user.name}</span>{" "}
-            {user.username ? <span className="opacity-70">@{user.username}</span> : null}
-          </p>
-          <p className="text-sm opacity-70">
-            {user.city || "—"} {user.state ? `- ${user.state}` : ""}
-          </p>
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold">Avaliar usuário</h1>
 
-      <ReviewFormClient tradeId={tradeId} reviewedId={user.id} />
+      <ReviewFormClient
+        tradeId={tradeId}
+        reviewedId={reviewedUserId}
+      />
     </div>
   );
 }

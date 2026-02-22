@@ -1,3 +1,4 @@
+//// src/app/(site)/produto/[id]/GalleryClient.js
 "use client";
 
 import Image from "next/image";

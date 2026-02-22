@@ -1,11 +1,10 @@
-"use client";
-
+// src/app/_components/Header.js
 import HeaderPublico from "./HeaderPublico";
 import HeaderLogado from "./HeaderLogado";
+import { getUserIdFromCookies } from "@/lib/getUserFromCookies";
 
-export default function Header() {
-  // por enquanto: simulação. depois você liga no auth (cookie/localStorage)
-  const isLogged = false;
-
-  return isLogged ? <HeaderLogado /> : <HeaderPublico />;
+export default async function Header() {
+  const userId = await getUserIdFromCookies();
+  if (!userId) return <HeaderPublico />;
+  return <HeaderLogado userName="" />;
 }

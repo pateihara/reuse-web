@@ -1,21 +1,35 @@
+//src/app/_components/HeaderLogado.js
 import Link from "next/link";
 import Image from "next/image";
+import LogoutButton from "./LogoutButton";
 
-export default function HeaderLogado() {
+function initials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+  if (!parts.length) return "U";
+  return parts.map((p) => p[0].toUpperCase()).join("");
+}
+
+export default function HeaderLogado({ userName }) {
+  const ini = initials(userName);
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-base-100 shadow">
       <div className="navbar mx-auto max-w-6xl px-4">
         <div className="navbar-start">
-<Link href="/" className="inline-flex items-center px-1">
-  <Image
-    src="/assets/reuse_logo.svg"
-    alt="ReUse"
-    width={140}
-    height={40}
-    className="h-10 w-auto"
-    priority
-  />
-</Link>
+          <Link href="/" className="inline-flex items-center px-1">
+            <Image
+              src="/assets/reuse_logo.svg"
+              alt="ReUse"
+              width={140}
+              height={40}
+              className="h-10 w-auto"
+              priority
+            />
+          </Link>
         </div>
 
         <div className="navbar-center hidden md:flex gap-2">
@@ -39,14 +53,16 @@ export default function HeaderLogado() {
           <div className="dropdown dropdown-end">
             <button tabIndex={0} className="btn btn-ghost btn-circle avatar placeholder">
               <div className="bg-neutral text-neutral-content rounded-full w-9">
-                <span>F</span>
+                <span>{ini}</span>
               </div>
             </button>
+
             <ul tabIndex={0} className="menu dropdown-content mt-3 w-52 rounded-box bg-base-100 p-2 shadow">
               <li><Link href="/meus-produtos">Meus produtos</Link></li>
               <li><Link href="/produtos-trocados">Produtos trocados</Link></li>
               <li><Link href="/publicar-item">Publicar item</Link></li>
-              <li><a href="#">Sair</a></li>
+              <li><Link href="/chats">Chats</Link></li>
+              <li><LogoutButton /></li>
             </ul>
           </div>
         </div>

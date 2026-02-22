@@ -1,5 +1,7 @@
 // src/app/api/items/route.js
+// src/app/api/items/route.js
 import { prisma } from "@/lib/prisma";
+import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -51,10 +53,15 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  // ✅ auth pelo cookie (não aceitar ownerId do client)
+  const userId = getUserIdFromRequest(req);
+  if (!userId) {
+    return new Response("Não autenticado", { status: 401 });
+  }
+
   const body = await req.json();
 
   const {
-    ownerId,
     title,
     description,
     category,
@@ -65,13 +72,13 @@ export async function POST(req) {
     imageUrls, // array
   } = body;
 
-  if (!ownerId || !title?.trim()) {
-    return new Response("ownerId e title são obrigatórios", { status: 400 });
+  if (!title?.trim()) {
+    return new Response("title é obrigatório", { status: 400 });
   }
 
   const item = await prisma.item.create({
     data: {
-      ownerId,
+      ownerId: userId,
       title: title.trim(),
       description: description?.trim() || null,
       category: category?.trim() || null,
@@ -80,13 +87,14 @@ export async function POST(req) {
       city: city?.trim() || null,
       state: state?.trim() || null,
       status: "ACTIVE",
-      images: Array.isArray(imageUrls) && imageUrls.length
-        ? {
-            create: imageUrls
-              .filter(Boolean)
-              .map((url, idx) => ({ url, order: idx })),
-          }
-        : undefined,
+      images:
+        Array.isArray(imageUrls) && imageUrls.length
+          ? {
+              create: imageUrls
+                .filter(Boolean)
+                .map((url, idx) => ({ url, order: idx })),
+            }
+          : undefined,
     },
     include: { images: { orderBy: { order: "asc" } } },
   });

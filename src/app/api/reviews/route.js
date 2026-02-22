@@ -1,12 +1,32 @@
-//src/app/api/reviews/route.js
+// src/app/api/reviews/route.js
 import { prisma } from "@/lib/prisma";
+import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
+
+export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+  const tradeId = searchParams.get("tradeId");
+
+  if (!tradeId) {
+    return new Response("tradeId é obrigatório", { status: 400 });
+  }
+
+  const review = await prisma.review.findUnique({
+    where: { tradeId },
+    select: { id: true, createdAt: true, reviewerId: true, reviewedId: true },
+  });
+
+  return Response.json({ exists: !!review, review: review || null }, { status: 200 });
+}
 
 export async function POST(req) {
-  const body = await req.json();
-  const { tradeId, reviewerId, reviewedId, rating, comment, imageUrls } = body;
+  const reviewerId = getUserIdFromRequest(req);
+  if (!reviewerId) return new Response("Não autenticado", { status: 401 });
 
-  if (!tradeId || !reviewerId || !reviewedId) {
-    return new Response("tradeId, reviewerId e reviewedId são obrigatórios", { status: 400 });
+  const body = await req.json();
+  const { tradeId, reviewedId, rating, comment, imageUrls } = body;
+
+  if (!tradeId || !reviewedId) {
+    return new Response("tradeId e reviewedId são obrigatórios", { status: 400 });
   }
 
   const r = Number(rating);
@@ -33,7 +53,7 @@ export async function POST(req) {
   if (!isParticipant) return new Response("Você não participa desse trade", { status: 403 });
 
   const expectedReviewedId = reviewerId === trade.requesterId ? trade.ownerId : trade.requesterId;
-  if (reviewedId !== expectedReviewedId) {
+  if (String(reviewedId) !== String(expectedReviewedId)) {
     return new Response("reviewedId inválido para este trade", { status: 400 });
   }
 
@@ -45,9 +65,7 @@ export async function POST(req) {
       rating: r,
       comment: comment?.trim() || null,
       images: Array.isArray(imageUrls) && imageUrls.length
-        ? {
-            create: imageUrls.filter(Boolean).map((url, idx) => ({ url, order: idx })),
-          }
+        ? { create: imageUrls.filter(Boolean).map((url, idx) => ({ url, order: idx })) }
         : undefined,
     },
     include: { images: { orderBy: { order: "asc" } } },

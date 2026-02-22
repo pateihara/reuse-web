@@ -1,3 +1,4 @@
+//src/app/_components/HeaderPublico.js
 import Link from "next/link";
 import Image from "next/image";
 

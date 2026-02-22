@@ -1,11 +1,16 @@
 //src/app/(site)/publicar-item/PublishItemClient.js
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export default function PublishItemClient() {
   const router = useRouter();
+  const sp = useSearchParams();
+
+  const redirect = sp.get("redirect");
+  const openTrade = sp.get("openTrade");
+
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -26,12 +31,6 @@ export default function PublishItemClient() {
   }
 
   async function submit() {
-    const ownerId = localStorage.getItem("reuse_user_id");
-    if (!ownerId) {
-      router.push("/login");
-      return;
-    }
-
     if (!form.title.trim()) {
       alert("Preencha o título do item.");
       return;
@@ -43,7 +42,6 @@ export default function PublishItemClient() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ownerId,
         title: form.title,
         description: form.description,
         category: form.category,
@@ -55,6 +53,16 @@ export default function PublishItemClient() {
       }),
     });
 
+    // ✅ cookie auth: se não autenticado, manda pro login preservando o fluxo atual
+    if (res.status === 401) {
+      setLoading(false);
+
+      // mantém querystring atual (redirect/openTrade) para voltar certinho depois do login
+      const current = `/publicar-item?${sp.toString()}`;
+      router.push(`/login?redirect=${encodeURIComponent(current)}`);
+      return;
+    }
+
     if (!res.ok) {
       alert(await res.text());
       setLoading(false);
@@ -63,7 +71,14 @@ export default function PublishItemClient() {
 
     const item = await res.json();
     setLoading(false);
-    router.push(`/produto/${item.id}`);
+
+    // volta para o produto e reabre modal, se veio desse fluxo
+    if (redirect) {
+      const qs = openTrade ? `?openTrade=${encodeURIComponent(openTrade)}` : "";
+      router.push(`${redirect}${qs}`);
+    } else {
+      router.push(`/produto/${item.id}`);
+    }
   }
 
   return (

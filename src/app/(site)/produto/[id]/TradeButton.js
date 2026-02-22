@@ -1,25 +1,42 @@
+//src/app/(site)/produto/[id]/TradeButton.js
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function TradeButton({ wantedItemId }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [myItems, setMyItems] = useState([]);
   const [selected, setSelected] = useState(null);
 
-  const requesterId =
-    typeof window !== "undefined" ? localStorage.getItem("reuse_user_id") : null;
-
   async function loadMyItems() {
-    if (!requesterId) return;
-    const res = await fetch(`/api/my-items?userId=${requesterId}`, { cache: "no-store" });
+    const res = await fetch(`/api/my-items?itemStatus=ACTIVE`, {
+  cache: "no-store",
+  credentials: "include",
+});
+
+    if (res.status === 401) {
+      router.push(`/login?redirect=/produto/${wantedItemId}`);
+      return;
+    }
+
     const data = res.ok ? await res.json() : [];
-    setMyItems(data);
+    setMyItems(Array.isArray(data) ? data : []);
   }
+
+  // abre modal automaticamente quando voltar de publicar-item
+  useEffect(() => {
+    const openTrade = searchParams.get("openTrade");
+    if (openTrade === "1") {
+      setOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (open) loadMyItems();
@@ -27,10 +44,6 @@ export default function TradeButton({ wantedItemId }) {
   }, [open]);
 
   async function confirmTrade() {
-    if (!requesterId) {
-      router.push("/login");
-      return;
-    }
     if (!selected) return;
 
     setLoading(true);
@@ -38,12 +51,18 @@ export default function TradeButton({ wantedItemId }) {
     const res = await fetch("/api/trades", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
-        requesterId,
         wantedItemId,
         offeredItemId: selected,
       }),
     });
+
+    if (res.status === 401) {
+      setLoading(false);
+      router.push(`/login?redirect=/produto/${wantedItemId}`);
+      return;
+    }
 
     if (!res.ok) {
       const txt = await res.text();
@@ -58,13 +77,17 @@ export default function TradeButton({ wantedItemId }) {
     router.push(`/chat/${trade.id}`);
   }
 
+  function goPublish() {
+    // volta pro produto e já reabre a modal
+    router.push(`/publicar-item?redirect=/produto/${wantedItemId}&openTrade=1`);
+  }
+
   return (
     <>
       <button className="btn btn-primary w-full" onClick={() => setOpen(true)}>
         Trocar agora
       </button>
 
-      {/* Modal DaisyUI */}
       <dialog className={`modal ${open ? "modal-open" : ""}`}>
         <div className="modal-box max-w-3xl">
           <h3 className="font-bold text-lg">Escolha o item que você vai oferecer</h3>
@@ -73,10 +96,7 @@ export default function TradeButton({ wantedItemId }) {
           </p>
 
           <div className="mt-4 flex gap-2 justify-end">
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => router.push("/publicar-item")}
-            >
+            <button className="btn btn-outline btn-sm" onClick={goPublish}>
               Publicar novo item
             </button>
           </div>
@@ -101,9 +121,7 @@ export default function TradeButton({ wantedItemId }) {
 
             {!myItems.length ? (
               <div className="alert">
-                <span>
-                  Você ainda não tem itens ativos. Clique em “Publicar novo item”.
-                </span>
+                <span>Você ainda não tem itens ativos. Clique em “Publicar novo item”.</span>
               </div>
             ) : null}
           </div>

@@ -1,3 +1,4 @@
+//src/app/_components/Footer.js
 import Link from "next/link";
 import Image from "next/image";
 

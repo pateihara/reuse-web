@@ -1,35 +1,56 @@
+// src/app/(site)/chat/[tradeId]/ChatClient.js
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
-function subscribeStorage(callback) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
-
-function getSnapshot() {
-  return localStorage.getItem("reuse_user_id") || "";
-}
-
-function getServerSnapshot() {
-  return "";
-}
-
-export default function ChatClient({ tradeId, initialMessages }) {
+export default function ChatClient({ tradeId, userId }) {
   const router = useRouter();
 
-  const senderId = useSyncExternalStore(subscribeStorage, getSnapshot, getServerSnapshot);
+  const [messages, setMessages] = useState([]);
+  const [loadingMsgs, setLoadingMsgs] = useState(true);
 
-  const [messages, setMessages] = useState(initialMessages || []);
+  const [canSend, setCanSend] = useState(true);
+  const [tradeStatus, setTradeStatus] = useState("");
+
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
-  async function send() {
-    if (!senderId) {
-      router.push("/login");
+  async function loadMessages() {
+    setLoadingMsgs(true);
+
+    const res = await fetch(`/api/messages?tradeId=${tradeId}`, {
+      cache: "no-store",
+      credentials: "include",
+    });
+
+    if (res.status === 401) {
+      router.push(`/login?redirect=/chat/${tradeId}`);
       return;
     }
+
+    if (!res.ok) {
+      setMessages([]);
+      setLoadingMsgs(false);
+      return;
+    }
+
+    const json = await res.json();
+    setMessages(json?.messages || []);
+    setCanSend(!!json?.canSend);
+    setTradeStatus(json?.tradeStatus || "");
+    setLoadingMsgs(false);
+  }
+
+  useEffect(() => {
+    loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tradeId]);
+
+  async function send() {
+    // ✅ não tenta enviar se o chat estiver encerrado
+    if (!canSend) return;
+
     if (!text.trim()) return;
 
     setSending(true);
@@ -37,12 +58,15 @@ export default function ChatClient({ tradeId, initialMessages }) {
     const res = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tradeId,
-        senderId: String(senderId),
-        content: text,
-      }),
+      credentials: "include",
+      body: JSON.stringify({ tradeId, content: text }),
     });
+
+    if (res.status === 401) {
+      setSending(false);
+      router.push(`/login?redirect=/chat/${tradeId}`);
+      return;
+    }
 
     if (!res.ok) {
       alert(await res.text());
@@ -64,33 +88,45 @@ export default function ChatClient({ tradeId, initialMessages }) {
         <p className="font-semibold">Chat</p>
 
         <div className="min-h-[260px] bg-base-200 rounded-lg p-3 space-y-2">
-          {messages.length ? (
-            messages.map((m) => (
-              <div
-                key={m.id}
-                className={`chat ${String(m.senderId) === String(senderId) ? "chat-end" : "chat-start"}`}
-              >
-                <div className="chat-bubble">{m.content}</div>
-              </div>
-            ))
+          {loadingMsgs ? (
+            <div className="skeleton h-24 w-full" />
+          ) : messages.length ? (
+            messages.map((m) => {
+              const mine = userId && String(m.senderId) === String(userId);
+              return (
+                <div key={m.id} className={`chat ${mine ? "chat-end" : "chat-start"}`}>
+                  <div className="chat-bubble">{m.content}</div>
+                </div>
+              );
+            })
           ) : (
             <p className="text-sm opacity-70">Sem mensagens ainda.</p>
           )}
         </div>
 
-        <div className="flex gap-2">
-          <input
-            className="input input-bordered w-full"
-            placeholder="Digite sua mensagem..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            disabled={sending}
-          />
-          <button className="btn btn-primary" onClick={send} disabled={sending}>
-            {sending ? "..." : "Enviar"}
-          </button>
-        </div>
+        {/* ✅ Se o chat está encerrado, não renderiza input */}
+        {!loadingMsgs && !canSend ? (
+          <div className="alert alert-warning">
+            <span>
+              Conversa encerrada. Não é possível enviar novas mensagens
+              {tradeStatus ? ` (status: ${tradeStatus}).` : "."}
+            </span>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              className="input input-bordered w-full"
+              placeholder="Digite sua mensagem..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              disabled={sending || !canSend}
+            />
+            <button className="btn btn-primary" onClick={send} disabled={sending || !canSend}>
+              {sending ? "..." : "Enviar"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

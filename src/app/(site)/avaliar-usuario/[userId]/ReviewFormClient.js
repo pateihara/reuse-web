@@ -4,40 +4,56 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+function StarRating({ value, onChange, disabled = false }) {
+  return (
+    <div className="rating rating-lg">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <input
+          key={n}
+          type="radio"
+          name="rating"
+          className="mask mask-star-2 bg-orange-400"
+          checked={value === n}
+          onChange={() => onChange(n)}
+          disabled={disabled}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function ReviewFormClient({ tradeId, reviewedId }) {
   const router = useRouter();
+
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
-  const [img1, setImg1] = useState("");
-  const [img2, setImg2] = useState("");
-  const [img3, setImg3] = useState("");
+  const [image1, setImage1] = useState("");
+  const [image2, setImage2] = useState("");
+  const [image3, setImage3] = useState("");
+
   const [loading, setLoading] = useState(false);
 
   async function submit() {
-    const reviewerId = localStorage.getItem("reuse_user_id");
-    if (!reviewerId) {
-      router.push("/login");
-      return;
-    }
-    if (!tradeId) {
-      alert("tradeId ausente na URL. Volte pelo chat e clique em Avaliar.");
-      return;
-    }
-
     setLoading(true);
 
     const res = await fetch("/api/reviews", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         tradeId,
-        reviewerId,
         reviewedId,
-        rating,
+        rating: Number(rating),
         comment,
-        imageUrls: [img1, img2, img3].filter(Boolean),
+        imageUrls: [image1, image2, image3].filter(Boolean),
       }),
     });
+
+    if (res.status === 401) {
+      setLoading(false);
+      router.push(`/login?redirect=/avaliar-usuario/${reviewedId}?tradeId=${tradeId}`);
+      return;
+    }
 
     if (!res.ok) {
       alert(await res.text());
@@ -46,7 +62,6 @@ export default function ReviewFormClient({ tradeId, reviewedId }) {
     }
 
     setLoading(false);
-    alert("Avaliação enviada!");
     router.push(`/chat/${tradeId}`);
   }
 
@@ -56,44 +71,56 @@ export default function ReviewFormClient({ tradeId, reviewedId }) {
         <div>
           <p className="font-semibold mb-2">Nota</p>
 
-          {/* DaisyUI rating */}
-          <div className="rating rating-lg">
-            {[1,2,3,4,5].map((n) => (
-              <input
-                key={n}
-                type="radio"
-                name="rating"
-                className="mask mask-star-2 bg-orange-400"
-                checked={rating === n}
-                onChange={() => setRating(n)}
-              />
-            ))}
+          <div className="flex items-center gap-3">
+            <StarRating value={rating} onChange={setRating} disabled={loading} />
+            <span className="text-sm opacity-70">{rating}/5</span>
           </div>
         </div>
 
         <div>
-          <p className="font-semibold mb-2">Comentário</p>
+          <p className="font-semibold mb-2">Comentário (opcional)</p>
           <textarea
             className="textarea textarea-bordered w-full"
             rows={4}
-            placeholder="Conte como foi a experiência..."
             value={comment}
             onChange={(e) => setComment(e.target.value)}
+            placeholder="Conte como foi a experiência..."
+            disabled={loading}
           />
         </div>
 
-        <div className="divider">Fotos (URLs por enquanto)</div>
+        <div className="divider">Fotos (URLs - opcional)</div>
 
-        <input className="input input-bordered w-full" placeholder="Foto 1 (URL)" value={img1} onChange={(e) => setImg1(e.target.value)} />
-        <input className="input input-bordered w-full" placeholder="Foto 2 (URL)" value={img2} onChange={(e) => setImg2(e.target.value)} />
-        <input className="input input-bordered w-full" placeholder="Foto 3 (URL)" value={img3} onChange={(e) => setImg3(e.target.value)} />
+        <div className="grid grid-cols-1 gap-3">
+          <input
+            className="input input-bordered w-full"
+            placeholder="Imagem 1 (URL)"
+            value={image1}
+            onChange={(e) => setImage1(e.target.value)}
+            disabled={loading}
+          />
+          <input
+            className="input input-bordered w-full"
+            placeholder="Imagem 2 (URL)"
+            value={image2}
+            onChange={(e) => setImage2(e.target.value)}
+            disabled={loading}
+          />
+          <input
+            className="input input-bordered w-full"
+            placeholder="Imagem 3 (URL)"
+            value={image3}
+            onChange={(e) => setImage3(e.target.value)}
+            disabled={loading}
+          />
+        </div>
 
         <button className="btn btn-primary w-full" onClick={submit} disabled={loading}>
           {loading ? "Enviando..." : "Enviar avaliação"}
         </button>
 
         <p className="text-xs opacity-70">
-          *No MVP, fotos são URLs. Depois trocamos por upload.
+          *A avaliação só é permitida quando o trade está concluído (DONE) e apenas 1 por trade.
         </p>
       </div>
     </div>

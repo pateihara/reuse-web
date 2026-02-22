@@ -1,3 +1,4 @@
+//// src/app/(site)/produto/[id]/page.js
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
