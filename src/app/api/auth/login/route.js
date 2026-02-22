@@ -1,4 +1,5 @@
 // src/app/api/auth/login/route.js
+export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createSessionToken, getSessionCookieName } from "@/lib/auth";
