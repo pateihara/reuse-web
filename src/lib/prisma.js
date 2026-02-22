@@ -5,8 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const globalForPrisma = globalThis;
 
 function makePrisma() {
-  const connectionString = process.env.POSTGRES_URL;
-
+const connectionString = process.env.POSTGRES_URL_MANUAL || process.env.POSTGRES_URL;
   if (!connectionString) {
     // Isso explica o build na Vercel quando env não está configurada
     throw new Error("POSTGRES_URL não definido. Configure na Vercel e no .env.local.");
