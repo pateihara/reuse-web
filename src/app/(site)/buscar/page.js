@@ -1,3 +1,4 @@
+//src/app/(site)/buscar/page.js
 import Link from "next/link";
 import BuscarClient from "./BuscarClient";
 import ProductGrid from "@/app/_components/Product/ProductGrid";

@@ -1,3 +1,5 @@
+//src/app/(site)/buscar/BuscarClient.js
+
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
