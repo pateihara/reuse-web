@@ -1,11 +1,11 @@
-//src/app/_components/Footer.js
+// src/app/_components/Footer.js
 import Link from "next/link";
 import Image from "next/image";
 
 export default function Footer() {
   return (
-<footer className="bg-base-100" style={{ boxShadow: "0 -6px 16px rgba(0,0,0,0.06)" }}>
-          <div className="mx-auto max-w-6xl px-4 py-10">
+    <footer className="bg-base-100" style={{ boxShadow: "0 -6px 16px rgba(0,0,0,0.06)" }}>
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="grid gap-10 md:grid-cols-12 md:items-start">
           {/* Esquerda: logo + redes */}
           <div className="md:col-span-3">
@@ -25,7 +25,6 @@ export default function Footer() {
             </p>
 
             <div className="mt-4 flex gap-2">
-              {/* Links externos podem continuar como <a> */}
               <a className="btn btn-ghost btn-circle btn-sm" href="#" aria-label="X">
                 <Image src="/assets/x_logo.svg" alt="" width={16} height={16} />
               </a>
@@ -54,8 +53,6 @@ export default function Footer() {
                 <ul className="mt-4 space-y-3 text-sm">
                   <li><Link className="link link-hover" href="/">Início</Link></li>
                   <li><Link className="link link-hover" href="/buscar">Produtos</Link></li>
-                  <li><Link className="link link-hover" href="/baixar-app">Baixar App</Link></li>
-                  <li><Link className="link link-hover" href="/comunidade">Comunidade</Link></li>
                 </ul>
               </div>
 

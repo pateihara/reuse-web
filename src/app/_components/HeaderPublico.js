@@ -1,4 +1,4 @@
-//src/app/_components/HeaderPublico.js
+// src/app/_components/HeaderPublico.js
 import Link from "next/link";
 import Image from "next/image";
 
@@ -8,22 +8,21 @@ export default function HeaderPublico() {
       <div className="navbar mx-auto max-w-6xl px-4">
         <div className="navbar-start">
           <Link href="/" className="inline-flex items-center px-1">
-  <Image
-    src="/assets/reuse_logo.svg"
-    alt="ReUse"
-    width={140}
-    height={40}
-    className="h-10 w-auto"
-    priority
-  />
-</Link>
+            <Image
+              src="/assets/reuse_logo.svg"
+              alt="ReUse"
+              width={140}
+              height={40}
+              className="h-10 w-auto"
+              priority
+            />
+          </Link>
         </div>
 
         <div className="navbar-center hidden md:flex gap-2">
           <ul className="menu menu-horizontal px-1">
             <li><Link href="/">Início</Link></li>
             <li><Link href="/buscar">Produtos</Link></li>
-            <li><Link href="/baixar-app">Baixar App</Link></li>
           </ul>
 
           <label className="input input-bordered flex items-center gap-2 w-[280px]">

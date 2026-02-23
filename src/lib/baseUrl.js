@@ -3,11 +3,12 @@ import { headers } from "next/headers";
 
 /**
  * Base URL segura para uso em Server Components / Route Handlers
+ * - Next 16: headers() pode ser Promise => usar await
  * - Em produção/preview na Vercel: usa x-forwarded-* (host real)
  * - Em dev local: cai para http://localhost:3000
  */
-export function getBaseUrl() {
-  const h = headers();
+export async function getBaseUrl() {
+  const h = await headers();
 
   const forwardedProto = h.get("x-forwarded-proto");
   const forwardedHost = h.get("x-forwarded-host");

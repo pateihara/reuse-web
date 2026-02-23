@@ -1,4 +1,4 @@
-//src/app/layout.js
+// src/app/layout.js
 import "./globals.css";
 import { Inter, Lato } from "next/font/google";
 import Header from "./_components/Header";
@@ -10,10 +10,10 @@ const lato = Lato({ subsets: ["latin"], weight: ["400", "700"], variable: "--fon
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" data-theme="reuse" className={`${inter.variable} ${lato.variable}`}>
-      <body className="font-[var(--font-lato)]">
+      <body className="font-[var(--font-lato)] min-h-screen flex flex-col">
         <Header />
-        {/* ajuste esse padding-top conforme a altura do seu header fixed */}
-        <main className="pt-20">{children}</main>
+        {/* AUMENTEI: header é maior que 80px */}
+        <main className="flex-1 pt-28">{children}</main>
         <Footer />
       </body>
     </html>

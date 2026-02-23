@@ -1,4 +1,4 @@
-//src/app/_components/HeaderLogado.js
+// src/app/_components/HeaderLogado.js
 import Link from "next/link";
 import Image from "next/image";
 import LogoutButton from "./LogoutButton";
@@ -36,7 +36,6 @@ export default function HeaderLogado({ userName }) {
           <ul className="menu menu-horizontal px-1">
             <li><Link href="/">Início</Link></li>
             <li><Link href="/buscar">Produtos</Link></li>
-            <li><Link href="/baixar-app">Baixar App</Link></li>
           </ul>
 
           <label className="input input-bordered flex items-center gap-2 w-[280px]">
