@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 async function uploadOne(file) {
   const form = new FormData();
@@ -38,24 +38,35 @@ export default function PublishItemClient() {
     state: "",
   });
 
-  const [files, setFiles] = useState([null, null, null]);
-
-  const previews = useMemo(() => {
-    return files.map((f) => (f ? URL.createObjectURL(f) : null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files.map((f) => (f ? f.name + f.size : "null")).join("|")]);
+  const [files, setFiles] = useState([]); // File[]
 
   function setField(key, value) {
     setForm((p) => ({ ...p, [key]: value }));
   }
 
-  function onPickFile(index, file) {
-    setFiles((prev) => {
-      const next = [...prev];
-      next[index] = file || null;
-      return next;
-    });
+  function onPickFiles(fileList) {
+    const arr = Array.from(fileList || []);
+    const max = 6; // limite MVP
+    setFiles(arr.slice(0, max));
   }
+
+  function removeAt(index) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  // ✅ previews derivadas (sem setState no effect)
+  const previews = useMemo(() => {
+    return files.map((f) => URL.createObjectURL(f));
+  }, [files]);
+
+  // ✅ cleanup das URLs (sem setState)
+  useEffect(() => {
+    return () => {
+      previews.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [previews]);
+
+  const canSubmit = form.title.trim().length > 0 && !loading && !uploading;
 
   async function submit() {
     if (!form.title.trim()) {
@@ -66,17 +77,19 @@ export default function PublishItemClient() {
     setLoading(true);
 
     try {
-      const selected = files.filter(Boolean);
-
+      // 1) upload das imagens
       let imageUrls = [];
-      if (selected.length) {
+      if (files.length) {
         setUploading(true);
-        for (const f of selected) {
+
+        for (const f of files) {
           imageUrls.push(await uploadOne(f));
         }
+
         setUploading(false);
       }
 
+      // 2) cria item no banco com imageUrls
       const res = await fetch("/api/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -185,47 +198,53 @@ export default function PublishItemClient() {
 
         <div className="divider">Fotos (upload)</div>
 
-        <div className="grid grid-cols-1 gap-4">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="rounded-2xl bg-base-200 p-4">
-              <div className="flex items-start gap-4">
-                <div className="h-24 w-24 rounded-xl bg-base-300 overflow-hidden grid place-items-center">
-                  {previews[i] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={previews[i]} alt={`Preview ${i + 1}`} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-xs opacity-70">Sem foto</span>
-                  )}
-                </div>
+        <label className="flex items-center justify-between gap-3 rounded-2xl bg-base-200 p-4 cursor-pointer">
+          <div>
+            <p className="font-semibold">Adicionar fotos</p>
+            <p className="text-xs opacity-70">
+              Selecione várias imagens (JPG/PNG/WEBP). Limite sugerido: até 6 fotos.
+            </p>
+          </div>
 
-                <div className="flex-1 space-y-2">
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="file-input file-input-bordered w-full"
-                    onChange={(e) => onPickFile(i, e.target.files?.[0] || null)}
-                  />
-                  <p className="text-xs opacity-70">
-                    JPG/PNG/WEBP. Sugestão: até ~4.5MB por imagem.
-                  </p>
+          <div className="btn btn-outline">⬆️ Upload</div>
 
-                  {files[i] ? (
-                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => onPickFile(i, null)}>
-                      Remover
-                    </button>
-                  ) : null}
-                </div>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            className="hidden"
+            onChange={(e) => onPickFiles(e.target.files)}
+          />
+        </label>
+
+        {previews.length ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {previews.map((src, idx) => (
+              <div key={src} className="relative rounded-2xl overflow-hidden bg-base-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt={`Foto ${idx + 1}`} className="h-32 w-full object-cover" />
+
+                <button
+                  type="button"
+                  className="btn btn-xs btn-circle absolute top-2 right-2"
+                  onClick={() => removeAt(idx)}
+                  aria-label="Remover foto"
+                >
+                  ✕
+                </button>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs opacity-70">Nenhuma foto selecionada.</p>
+        )}
 
-        <button className="btn btn-primary w-full" onClick={submit} disabled={loading || uploading}>
+        <button className="btn btn-primary w-full" onClick={submit} disabled={!canSubmit}>
           {uploading ? "Enviando fotos..." : loading ? "Publicando..." : "Publicar"}
         </button>
 
         <p className="text-xs opacity-70">
-          *As fotos são enviadas e salvas como URLs no banco (ItemImage).
+          *As fotos são enviadas para storage e salvas como URLs no banco (ItemImage).
         </p>
       </div>
     </div>
