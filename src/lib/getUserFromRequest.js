@@ -4,12 +4,13 @@ import { verifySessionToken, getSessionCookieName } from "@/lib/auth";
 
 // Funciona dentro de Route Handlers (src/app/api/**)
 // e também aguenta casos em que o header cookie vem vazio.
-export function getUserIdFromRequest(req) {
+export async function getUserIdFromRequest(req) {
   const cookieName = getSessionCookieName();
 
-  // 1) Tenta via cookies() (mais confiável no App Router)
+  // 1) Tenta via cookies() (App Router / Next 16: cookies() pode ser Promise)
   try {
-    const tokenFromStore = cookies().get(cookieName)?.value;
+    const store = await cookies();
+    const tokenFromStore = store.get(cookieName)?.value;
     const session = verifySessionToken(tokenFromStore);
     if (session?.userId) return session.userId;
   } catch {

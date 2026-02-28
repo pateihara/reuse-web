@@ -56,23 +56,14 @@ export async function GET(req) {
 
 export async function POST(req) {
   // ✅ auth pelo cookie (não aceitar ownerId do client)
-  const userId = getUserIdFromRequest(req);
+  const userId = await getUserIdFromRequest(req);
   if (!userId) {
     return new Response("Não autenticado", { status: 401 });
   }
 
   const body = await req.json();
 
-  const {
-    title,
-    description,
-    category,
-    size,
-    condition,
-    city,
-    state,
-    imageUrls, // array
-  } = body;
+  const { title, description, category, size, condition, city, state, imageUrls } = body;
 
   if (!title?.trim()) {
     return new Response("title é obrigatório", { status: 400 });
