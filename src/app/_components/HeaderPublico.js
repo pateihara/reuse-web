@@ -33,6 +33,7 @@ export default function HeaderPublico() {
 
         <div className="navbar-end gap-2">
           <Link href="/login" className="btn btn-ghost">Entrar</Link>
+          <Link href="/cadastro" className="btn btn-outline">Cadastrar</Link>
           <Link href="/publicar-item" className="btn btn-primary">Publicar Item</Link>
         </div>
       </div>
