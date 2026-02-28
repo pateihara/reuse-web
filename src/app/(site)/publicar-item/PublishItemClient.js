@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRef, useState } from "react";
 
 async function uploadOne(file) {
   const form = new FormData();
@@ -38,7 +38,10 @@ export default function PublishItemClient() {
     state: "",
   });
 
+  // arquivos + previews
   const [files, setFiles] = useState([]); // File[]
+  const [previews, setPreviews] = useState([]); // string[]
+  const prevUrlsRef = useRef([]); // guarda previews antigos pra revogar
 
   function setField(key, value) {
     setForm((p) => ({ ...p, [key]: value }));
@@ -46,25 +49,31 @@ export default function PublishItemClient() {
 
   function onPickFiles(fileList) {
     const arr = Array.from(fileList || []);
-    const max = 6; // limite MVP
-    setFiles(arr.slice(0, max));
+    const max = 6;
+    const selected = arr.slice(0, max);
+
+    // revoga previews antigos
+    prevUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    prevUrlsRef.current = [];
+
+    // cria previews novos
+    const urls = selected.map((f) => URL.createObjectURL(f));
+    prevUrlsRef.current = urls;
+
+    setFiles(selected);
+    setPreviews(urls);
   }
 
   function removeAt(index) {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed);
+      const next = prev.filter((_, i) => i !== index);
+      prevUrlsRef.current = next;
+      return next;
+    });
   }
-
-  // ✅ previews derivadas (sem setState no effect)
-  const previews = useMemo(() => {
-    return files.map((f) => URL.createObjectURL(f));
-  }, [files]);
-
-  // ✅ cleanup das URLs (sem setState)
-  useEffect(() => {
-    return () => {
-      previews.forEach((u) => URL.revokeObjectURL(u));
-    };
-  }, [previews]);
 
   const canSubmit = form.title.trim().length > 0 && !loading && !uploading;
 
@@ -81,15 +90,13 @@ export default function PublishItemClient() {
       let imageUrls = [];
       if (files.length) {
         setUploading(true);
-
         for (const f of files) {
           imageUrls.push(await uploadOne(f));
         }
-
         setUploading(false);
       }
 
-      // 2) cria item no banco com imageUrls
+      // 2) cria item
       const res = await fetch("/api/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,24 +205,15 @@ export default function PublishItemClient() {
 
         <div className="divider">Fotos (upload)</div>
 
-        <label className="flex items-center justify-between gap-3 rounded-2xl bg-base-200 p-4 cursor-pointer">
-          <div>
-            <p className="font-semibold">Adicionar fotos</p>
-            <p className="text-xs opacity-70">
-              Selecione várias imagens (JPG/PNG/WEBP). Limite sugerido: até 6 fotos.
-            </p>
-          </div>
-
-          <div className="btn btn-outline">⬆️ Upload</div>
-
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            multiple
-            className="hidden"
-            onChange={(e) => onPickFiles(e.target.files)}
-          />
-        </label>
+        {/* input visível (mais confiável que label hidden) */}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          multiple
+          className="file-input file-input-bordered w-full"
+          onChange={(e) => onPickFiles(e.target.files)}
+        />
+        <p className="text-xs opacity-70">Selecione até 6 imagens (JPG/PNG/WEBP).</p>
 
         {previews.length ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -223,7 +221,6 @@ export default function PublishItemClient() {
               <div key={src} className="relative rounded-2xl overflow-hidden bg-base-200">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt={`Foto ${idx + 1}`} className="h-32 w-full object-cover" />
-
                 <button
                   type="button"
                   className="btn btn-xs btn-circle absolute top-2 right-2"
@@ -244,7 +241,7 @@ export default function PublishItemClient() {
         </button>
 
         <p className="text-xs opacity-70">
-          *As fotos são enviadas para storage e salvas como URLs no banco (ItemImage).
+          *As fotos são enviadas e salvas como URLs no banco (ItemImage).
         </p>
       </div>
     </div>
