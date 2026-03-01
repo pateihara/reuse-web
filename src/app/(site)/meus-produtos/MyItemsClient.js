@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 function badgeForItemStatus(status) {
   if (status === "ACTIVE") return "badge-success";
@@ -19,36 +19,37 @@ function badgeForNegotiation(status) {
 }
 
 export default function MyItemsClient() {
-  const userId = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("reuse_user_id");
-  }, []);
-
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(false);
 
   const [filters, setFilters] = useState({
-    itemStatus: "", // ACTIVE | PAUSED | TRADED | ""
-    negotiation: "", // LIVRE | EM_NEGOCIACAO | CONCLUIDO | ""
+    itemStatus: "",
+    negotiation: "",
   });
 
   async function load() {
-    if (!userId) {
+    setLoading(true);
+    setAuthError(false);
+
+    const qs = new URLSearchParams();
+    if (filters.itemStatus) qs.set("itemStatus", filters.itemStatus);
+    if (filters.negotiation) qs.set("negotiation", filters.negotiation);
+
+    const res = await fetch(`/api/my-items?${qs.toString()}`, {
+      cache: "no-store",
+      credentials: "include", // ✅ garante cookie
+    });
+
+    if (res.status === 401) {
       setItems([]);
+      setAuthError(true);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-
-    const qs = new URLSearchParams();
-    qs.set("userId", userId);
-    if (filters.itemStatus) qs.set("itemStatus", filters.itemStatus);
-    if (filters.negotiation) qs.set("negotiation", filters.negotiation);
-
-    const res = await fetch(`/api/my-items?${qs.toString()}`, { cache: "no-store" });
     const data = res.ok ? await res.json() : [];
-    setItems(data);
+    setItems(Array.isArray(data) ? data : []);
     setLoading(false);
   }
 
@@ -61,8 +62,14 @@ export default function MyItemsClient() {
     const res = await fetch(`/api/items/${itemId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ status }),
     });
+
+    if (res.status === 401) {
+      alert("Você precisa estar logado.");
+      return;
+    }
 
     if (!res.ok) {
       alert(await res.text());
@@ -72,11 +79,11 @@ export default function MyItemsClient() {
     load();
   }
 
-  if (!userId) {
+  if (authError) {
     return (
       <div className="alert flex items-center justify-between">
         <span>Você precisa estar logado para ver seus produtos.</span>
-        <Link className="btn btn-sm btn-outline" href="/login">
+        <Link className="btn btn-sm btn-outline" href="/login?redirect=/meus-produtos">
           Ir para login
         </Link>
       </div>
@@ -136,7 +143,7 @@ export default function MyItemsClient() {
               ? "Concluída"
               : "Livre";
 
-          const isLocked = it.status === "TRADED"; // concluiu, não faz mais nada
+          const isLocked = it.status === "TRADED";
 
           return (
             <div key={it.id} className="card bg-base-100 shadow">
@@ -151,12 +158,8 @@ export default function MyItemsClient() {
                 </p>
 
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <span className={`badge ${badgeForItemStatus(it.status)}`}>
-                    {itemStatusLabel}
-                  </span>
-                  <span className={`badge ${badgeForNegotiation(it.negotiationStatus)}`}>
-                    {negLabel}
-                  </span>
+                  <span className={`badge ${badgeForItemStatus(it.status)}`}>{itemStatusLabel}</span>
+                  <span className={`badge ${badgeForNegotiation(it.negotiationStatus)}`}>{negLabel}</span>
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -164,29 +167,17 @@ export default function MyItemsClient() {
                     Ver
                   </Link>
 
-                  {/* Pausar/Ativar só se não estiver concluído */}
                   {isLocked ? null : it.status === "ACTIVE" ? (
-                    <button
-                      className="btn btn-sm btn-warning"
-                      onClick={() => setStatus(it.id, "PAUSED")}
-                    >
+                    <button className="btn btn-sm btn-warning" onClick={() => setStatus(it.id, "PAUSED")}>
                       Pausar
                     </button>
                   ) : (
-                    <button
-                      className="btn btn-sm btn-success"
-                      onClick={() => setStatus(it.id, "ACTIVE")}
-                    >
+                    <button className="btn btn-sm btn-success" onClick={() => setStatus(it.id, "ACTIVE")}>
                       Ativar
                     </button>
                   )}
 
-                  {/* Excluir sempre (soft delete) */}
-                  <button
-                    className="btn btn-sm btn-error"
-                    onClick={() => setStatus(it.id, "DELETED")}
-                    disabled={false}
-                  >
+                  <button className="btn btn-sm btn-error" onClick={() => setStatus(it.id, "DELETED")}>
                     Excluir
                   </button>
                 </div>

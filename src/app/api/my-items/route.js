@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 
 export async function GET(req) {
-  const userId = getUserIdFromRequest(req);
+  const userId = await getUserIdFromRequest(req);
   if (!userId) return new Response("Não autenticado", { status: 401 });
 
   const { searchParams } = new URL(req.url);

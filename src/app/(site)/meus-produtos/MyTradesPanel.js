@@ -1,8 +1,9 @@
 //src/app/(site)/meus-produtos/MyTradesPanel.js
-
+// src/app/(site)/meus-produtos/MyTradesPanel.js
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 function badgeForTradeStatus(status) {
@@ -23,6 +24,14 @@ function labelForTradeStatus(status) {
   return status;
 }
 
+function Thumb({ src, alt }) {
+  return (
+    <div className="relative w-10 h-10 overflow-hidden rounded">
+      <Image src={src} alt={alt} fill className="object-cover" sizes="40px" />
+    </div>
+  );
+}
+
 function TradeCard({ t }) {
   const offeredThumb = t.offeredItem?.images?.[0]?.url || "/assets/reuse_logo_focus.svg";
   const wantedThumb = t.wantedItem?.images?.[0]?.url || "/assets/reuse_logo_focus.svg";
@@ -31,34 +40,33 @@ function TradeCard({ t }) {
     <div className="card bg-base-100 shadow">
       <div className="card-body p-4 space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <div className="text-sm font-semibold">
-            {t.otherUser?.name || "Usuário"}
-          </div>
+          <div className="text-sm font-semibold">{t.otherUser?.name || "Usuário"}</div>
           <span className={`badge ${badgeForTradeStatus(t.status)}`}>
             {labelForTradeStatus(t.status)}
           </span>
         </div>
 
+        {/* comparação dos itens */}
         <div className="grid grid-cols-2 gap-3">
           <div className="border rounded-lg p-3">
             <p className="text-xs font-semibold opacity-70 mb-1">Você ofereceu</p>
             <div className="flex items-center gap-2">
-              <img src={offeredThumb} alt="" className="w-10 h-10 rounded object-cover" />
-              <p className="text-sm">{t.offeredItem?.title}</p>
+              <Thumb src={offeredThumb} alt="Item oferecido" />
+              <p className="text-sm">{t.offeredItem?.title || "—"}</p>
             </div>
           </div>
 
           <div className="border rounded-lg p-3">
             <p className="text-xs font-semibold opacity-70 mb-1">Você quer</p>
             <div className="flex items-center gap-2">
-              <img src={wantedThumb} alt="" className="w-10 h-10 rounded object-cover" />
-              <p className="text-sm">{t.wantedItem?.title}</p>
+              <Thumb src={wantedThumb} alt="Item desejado" />
+              <p className="text-sm">{t.wantedItem?.title || "—"}</p>
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 justify-end pt-1">
-          <Link className="btn btn-sm btn-outline" href={`/produto/${t.wantedItem?.id}`}>
+          <Link className="btn btn-sm btn-outline" href={`/produto/${t.wantedItem?.id || ""}`}>
             Ver desejado
           </Link>
           <Link className="btn btn-sm btn-primary" href={`/chat/${t.id}`}>
@@ -88,8 +96,8 @@ export default function MyTradesPanel() {
 
     try {
       const [r1, r2] = await Promise.all([
-        fetch("/api/my-trades?type=in-progress", { cache: "no-store" }),
-        fetch("/api/my-trades?type=done", { cache: "no-store" }),
+        fetch("/api/my-trades?type=in-progress", { cache: "no-store", credentials: "include" }),
+        fetch("/api/my-trades?type=done", { cache: "no-store", credentials: "include" }),
       ]);
 
       if (r1.status === 401 || r2.status === 401) {
