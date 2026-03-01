@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 
 const IN_PROGRESS = ["PENDING", "CHAT_ACTIVE", "TRADE_MARKED"];
-const FINISHED = ["DONE"]; // se quiser incluir CANCELED, troque para ["DONE", "CANCELED"]
+const FINISHED = ["DONE", "CANCELED"]; // se NÃO quiser CANCELED em "done", deixe só ["DONE"]
 
 export async function GET(req) {
   const userId = await getUserIdFromRequest(req);

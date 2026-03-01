@@ -8,20 +8,26 @@ import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 export async function POST(req) {
   try {
     const requesterId = await getUserIdFromRequest(req);
-    if (!requesterId) return new Response("Não autenticado", { status: 401 });
+    if (!requesterId) {
+      return Response.json({ error: "Não autenticado" }, { status: 401 });
+    }
 
     const body = await req.json().catch(() => ({}));
     const wantedItemId = String(body?.wantedItemId || "");
     const offeredItemId = String(body?.offeredItemId || "");
 
     if (!wantedItemId || !offeredItemId) {
-      return new Response("wantedItemId e offeredItemId são obrigatórios", { status: 400 });
+      return Response.json(
+        { error: "wantedItemId e offeredItemId são obrigatórios" },
+        { status: 400 }
+      );
     }
 
     if (wantedItemId === offeredItemId) {
-      return new Response("Você não pode oferecer o mesmo item que está desejando.", {
-        status: 400,
-      });
+      return Response.json(
+        { error: "Você não pode oferecer o mesmo item que está desejando." },
+        { status: 400 }
+      );
     }
 
     const wantedItem = await prisma.item.findUnique({
@@ -30,7 +36,7 @@ export async function POST(req) {
     });
 
     if (!wantedItem || wantedItem.status !== "ACTIVE") {
-      return new Response("Item desejado inválido", { status: 400 });
+      return Response.json({ error: "Item desejado inválido" }, { status: 400 });
     }
 
     const offeredItem = await prisma.item.findUnique({
@@ -39,20 +45,26 @@ export async function POST(req) {
     });
 
     if (!offeredItem || offeredItem.status !== "ACTIVE") {
-      return new Response("Item oferecido inválido", { status: 400 });
+      return Response.json({ error: "Item oferecido inválido" }, { status: 400 });
     }
 
     // offeredItem tem que ser do requester
     if (String(offeredItem.ownerId) !== String(requesterId)) {
-      return new Response("O item oferecido não pertence ao requester.", { status: 403 });
+      return Response.json(
+        { error: "O item oferecido não pertence ao requester." },
+        { status: 403 }
+      );
     }
 
     // não pode trocar com você mesmo
     if (String(wantedItem.ownerId) === String(requesterId)) {
-      return new Response("Você não pode trocar com você mesmo.", { status: 400 });
+      return Response.json(
+        { error: "Você não pode trocar com você mesmo." },
+        { status: 400 }
+      );
     }
 
-    // ✅ ANTI-DUPLICIDADE: se já existe um trade ativo com o mesmo par, reutiliza
+    // ✅ Anti-duplicidade: se já existe um trade ativo com o mesmo par, reutiliza
     const existing = await prisma.trade.findFirst({
       where: {
         requesterId,
@@ -85,6 +97,6 @@ export async function POST(req) {
     return Response.json(trade, { status: 201 });
   } catch (err) {
     console.error("TRADE_CREATE_ERROR", err);
-    return new Response("Erro ao criar trade", { status: 500 });
+    return Response.json({ error: "Erro ao criar trade" }, { status: 500 });
   }
 }

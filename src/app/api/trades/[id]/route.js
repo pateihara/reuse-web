@@ -82,6 +82,10 @@ export async function PATCH(req, ctx) {
 
   if (action === "CANCEL") {
     if (trade.status === "DONE") return jsonError("Trade já concluído", 400);
+    if (trade.status === "CANCELED") {
+      // idempotente
+      return Response.json({ ok: true, status: "CANCELED" });
+    }
 
     const updated = await prisma.trade.update({
       where: { id },
@@ -110,18 +114,22 @@ export async function PATCH(req, ctx) {
       return jsonError("Trade ainda não está ativo", 400);
     }
 
+    // Hardening: só conclui se ambos itens ainda estiverem ACTIVE
+    // (se você quiser permitir PAUSED, ajuste essa regra)
+    if (trade.offeredItem?.status !== "ACTIVE" || trade.wantedItem?.status !== "ACTIVE") {
+      return jsonError("Não é possível concluir: um dos itens não está mais ACTIVE.", 400);
+    }
+
     const data = {};
     if (isRequester) data.requesterDone = true;
     if (isOwner) data.ownerDone = true;
 
-    // Marca confirmação do usuário atual
     const partial = await prisma.trade.update({
       where: { id },
       data,
       select: { id: true, requesterDone: true, ownerDone: true, status: true },
     });
 
-    // Se ambos confirmaram, finaliza e marca itens como TRADED em transação
     if (partial.requesterDone && partial.ownerDone) {
       const result = await prisma.$transaction(async (tx) => {
         const updatedTrade = await tx.trade.update({
@@ -129,8 +137,15 @@ export async function PATCH(req, ctx) {
           data: { status: "DONE", completedAt: new Date() },
         });
 
-        await tx.item.update({ where: { id: trade.offeredItemId }, data: { status: "TRADED" } });
-        await tx.item.update({ where: { id: trade.wantedItemId }, data: { status: "TRADED" } });
+        await tx.item.update({
+          where: { id: trade.offeredItemId },
+          data: { status: "TRADED" },
+        });
+
+        await tx.item.update({
+          where: { id: trade.wantedItemId },
+          data: { status: "TRADED" },
+        });
 
         return updatedTrade;
       });
