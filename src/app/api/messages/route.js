@@ -1,6 +1,7 @@
 // src/app/api/messages/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 
@@ -12,22 +13,14 @@ function isParticipant(userId, trade) {
 }
 
 function canSendForTrade(trade) {
-  // Trade encerrado
   if (["DONE", "CANCELED"].includes(trade.status)) return false;
-
-  // Se algum item foi removido, encerra chat
   if (trade.offeredItem?.status === "DELETED") return false;
   if (trade.wantedItem?.status === "DELETED") return false;
-
-  // Se você quiser bloquear também quando PAUSED, descomente:
-  // if (trade.offeredItem?.status === "PAUSED") return false;
-  // if (trade.wantedItem?.status === "PAUSED") return false;
-
   return true;
 }
 
 export async function GET(req) {
-  const userId = getUserIdFromRequest(req);
+  const userId = await getUserIdFromRequest(req);
   if (!userId) return new Response("Não autenticado", { status: 401 });
 
   const { searchParams } = new URL(req.url);
@@ -63,17 +56,16 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  const userId = getUserIdFromRequest(req);
+  const userId = await getUserIdFromRequest(req);
   if (!userId) return new Response("Não autenticado", { status: 401 });
 
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const tradeId = body?.tradeId;
   const content = String(body?.content || "");
 
   if (!tradeId) return new Response("tradeId é obrigatório", { status: 400 });
   if (!content.trim()) return new Response("content é obrigatório", { status: 400 });
 
-  // Busca trade com status + itens pra aplicar regra de bloqueio
   const trade = await prisma.trade.findUnique({
     where: { id: tradeId },
     select: {
