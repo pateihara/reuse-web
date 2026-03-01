@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function ChatClient({ tradeId, userId }) {
   const router = useRouter();
@@ -13,45 +13,85 @@ export default function ChatClient({ tradeId, userId }) {
   const [canSend, setCanSend] = useState(true);
   const [tradeStatus, setTradeStatus] = useState("");
 
-  // novos estados p/ UX
   const [iConfirmed, setIConfirmed] = useState(false);
   const [otherConfirmed, setOtherConfirmed] = useState(false);
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
-  async function loadMessages() {
-    setLoadingMsgs(true);
+  // ✅ evita setState depois de unmount + evita overlap de requests
+  const aliveRef = useRef(true);
+  const inFlightRef = useRef(false);
 
-    const res = await fetch(`/api/messages?tradeId=${tradeId}`, {
-      cache: "no-store",
-      credentials: "include",
-    });
+  async function loadMessages({ silent = false } = {}) {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
 
-    if (res.status === 401) {
-      router.push(`/login?redirect=/chat/${tradeId}`);
-      return;
-    }
+    if (!silent) setLoadingMsgs(true);
 
-    if (!res.ok) {
-      setMessages([]);
+    try {
+      const res = await fetch(`/api/messages?tradeId=${tradeId}`, {
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (res.status === 401) {
+        router.push(`/login?redirect=/chat/${tradeId}`);
+        return;
+      }
+
+      if (!res.ok) {
+        if (aliveRef.current) {
+          setMessages([]);
+          setCanSend(false);
+          setTradeStatus("");
+          setIConfirmed(false);
+          setOtherConfirmed(false);
+          setLoadingMsgs(false);
+        }
+        return;
+      }
+
+      const json = await res.json();
+
+      if (!aliveRef.current) return;
+
+      setMessages(json?.messages || []);
+      setCanSend(!!json?.canSend);
+      setTradeStatus(json?.tradeStatus || "");
+      setIConfirmed(!!json?.iConfirmed);
+      setOtherConfirmed(!!json?.otherConfirmed);
       setLoadingMsgs(false);
-      return;
+    } catch (e) {
+      console.error(e);
+      if (aliveRef.current) setLoadingMsgs(false);
+    } finally {
+      inFlightRef.current = false;
     }
-
-    const json = await res.json();
-    setMessages(json?.messages || []);
-    setCanSend(!!json?.canSend);
-    setTradeStatus(json?.tradeStatus || "");
-    setIConfirmed(!!json?.iConfirmed);
-    setOtherConfirmed(!!json?.otherConfirmed);
-    setLoadingMsgs(false);
   }
 
   useEffect(() => {
+    aliveRef.current = true;
     loadMessages();
+
+    return () => {
+      aliveRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tradeId]);
+
+  // ✅ poll leve enquanto o trade estiver ativo
+  useEffect(() => {
+    const active = ["PENDING", "CHAT_ACTIVE", "TRADE_MARKED"].includes(tradeStatus);
+    if (!active) return;
+
+    const id = setInterval(() => {
+      loadMessages({ silent: true });
+    }, 8000);
+
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tradeStatus, tradeId]);
 
   async function send() {
     if (!canSend) return;
@@ -59,39 +99,43 @@ export default function ChatClient({ tradeId, userId }) {
 
     setSending(true);
 
-    const res = await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ tradeId, content: text }),
-    });
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tradeId, content: text }),
+      });
 
-    if (res.status === 401) {
+      if (res.status === 401) {
+        setSending(false);
+        router.push(`/login?redirect=/chat/${tradeId}`);
+        return;
+      }
+
+      if (!res.ok) {
+        alert(await res.text());
+        setSending(false);
+        return;
+      }
+
+      const msg = await res.json();
+      setMessages((prev) => [...prev, msg]);
+      setText("");
       setSending(false);
-      router.push(`/login?redirect=/chat/${tradeId}`);
-      return;
-    }
 
-    if (!res.ok) {
-      alert(await res.text());
+      // mantém sincronizado (status/confirm/etc)
+      loadMessages({ silent: true });
+      router.refresh();
+    } catch (e) {
+      console.error(e);
       setSending(false);
-      return;
+      alert("Erro de rede ao enviar mensagem.");
     }
-
-    const msg = await res.json();
-    setMessages((prev) => [...prev, msg]);
-    setText("");
-    setSending(false);
-
-    // mantém a tela sincronizada (status, confirmações, etc.)
-    loadMessages();
-    router.refresh();
   }
 
   const showConfirmBanner =
-    !loadingMsgs &&
-    canSend &&
-    ["CHAT_ACTIVE", "TRADE_MARKED"].includes(tradeStatus);
+    !loadingMsgs && canSend && ["CHAT_ACTIVE", "TRADE_MARKED"].includes(tradeStatus);
 
   return (
     <div className="card bg-base-100 shadow">
