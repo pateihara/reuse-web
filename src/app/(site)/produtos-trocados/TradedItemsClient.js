@@ -1,25 +1,9 @@
-//src/app/(site)/produtos-trocados/TradedItemsClient.js
-
+// src/app/(site)/produtos-trocados/TradedItemsClient.js
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-
-function subscribeStorage(cb) {
-  window.addEventListener("storage", cb);
-  window.addEventListener("reuse_auth", cb); // mesmo padrão que você usou no ReviewCTA
-  return () => {
-    window.removeEventListener("storage", cb);
-    window.removeEventListener("reuse_auth", cb);
-  };
-}
-function getSnapshot() {
-  return localStorage.getItem("reuse_user_id") || "";
-}
-function getServerSnapshot() {
-  return "";
-}
+import { useEffect, useState } from "react";
 
 function badgeForNegotiation(status) {
   if (status === "EM_NEGOCIACAO") return "badge-info";
@@ -28,40 +12,47 @@ function badgeForNegotiation(status) {
 }
 
 export default function TradedItemsClient() {
-  const userId = useSyncExternalStore(subscribeStorage, getSnapshot, getServerSnapshot);
-
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(false);
 
   async function load() {
-    if (!userId) {
+    setLoading(true);
+    setAuthError(false);
+
+    const qs = new URLSearchParams();
+    qs.set("itemStatus", "TRADED");
+
+    const res = await fetch(`/api/my-items?${qs.toString()}`, {
+      cache: "no-store",
+      credentials: "include",
+    });
+
+    if (res.status === 401) {
       setItems([]);
+      setAuthError(true);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-
-    const qs = new URLSearchParams();
-    qs.set("userId", userId);
-    qs.set("itemStatus", "TRADED"); // 🔒 fixo
-
-    const res = await fetch(`/api/my-items?${qs.toString()}`, { cache: "no-store" });
     const data = res.ok ? await res.json() : [];
     setItems(Array.isArray(data) ? data : []);
     setLoading(false);
   }
 
   useEffect(() => {
-    load();
+    // ✅ evita chamar setState "direto" via função externa no body do effect
+    (async () => {
+      await load();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, []);
 
-  if (!userId) {
+  if (authError) {
     return (
       <div className="alert flex items-center justify-between">
         <span>Você precisa estar logado para ver seus produtos trocados.</span>
-        <Link className="btn btn-sm btn-outline" href="/login">
+        <Link className="btn btn-sm btn-outline" href="/login?redirect=/produtos-trocados">
           Ir para login
         </Link>
       </div>
