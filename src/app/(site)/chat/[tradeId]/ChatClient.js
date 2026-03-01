@@ -13,6 +13,10 @@ export default function ChatClient({ tradeId, userId }) {
   const [canSend, setCanSend] = useState(true);
   const [tradeStatus, setTradeStatus] = useState("");
 
+  // novos estados p/ UX
+  const [iConfirmed, setIConfirmed] = useState(false);
+  const [otherConfirmed, setOtherConfirmed] = useState(false);
+
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -39,6 +43,8 @@ export default function ChatClient({ tradeId, userId }) {
     setMessages(json?.messages || []);
     setCanSend(!!json?.canSend);
     setTradeStatus(json?.tradeStatus || "");
+    setIConfirmed(!!json?.iConfirmed);
+    setOtherConfirmed(!!json?.otherConfirmed);
     setLoadingMsgs(false);
   }
 
@@ -48,9 +54,7 @@ export default function ChatClient({ tradeId, userId }) {
   }, [tradeId]);
 
   async function send() {
-    // ✅ não tenta enviar se o chat estiver encerrado
     if (!canSend) return;
-
     if (!text.trim()) return;
 
     setSending(true);
@@ -79,13 +83,32 @@ export default function ChatClient({ tradeId, userId }) {
     setText("");
     setSending(false);
 
+    // mantém a tela sincronizada (status, confirmações, etc.)
+    loadMessages();
     router.refresh();
   }
+
+  const showConfirmBanner =
+    !loadingMsgs &&
+    canSend &&
+    ["CHAT_ACTIVE", "TRADE_MARKED"].includes(tradeStatus);
 
   return (
     <div className="card bg-base-100 shadow">
       <div className="card-body space-y-3">
         <p className="font-semibold">Chat</p>
+
+        {showConfirmBanner ? (
+          iConfirmed && !otherConfirmed ? (
+            <div className="alert alert-info">
+              <span>Você já confirmou. Aguardando o outro usuário confirmar…</span>
+            </div>
+          ) : !iConfirmed && otherConfirmed ? (
+            <div className="alert alert-warning">
+              <span>O outro usuário já confirmou. Falta você confirmar para concluir.</span>
+            </div>
+          ) : null
+        ) : null}
 
         <div className="min-h-[260px] bg-base-200 rounded-lg p-3 space-y-2">
           {loadingMsgs ? (
@@ -104,7 +127,6 @@ export default function ChatClient({ tradeId, userId }) {
           )}
         </div>
 
-        {/* ✅ Se o chat está encerrado, não renderiza input */}
         {!loadingMsgs && !canSend ? (
           <div className="alert alert-warning">
             <span>
