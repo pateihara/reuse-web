@@ -19,7 +19,9 @@ export async function POST(req) {
     }
 
     if (wantedItemId === offeredItemId) {
-      return new Response("Você não pode oferecer o mesmo item que está desejando.", { status: 400 });
+      return new Response("Você não pode oferecer o mesmo item que está desejando.", {
+        status: 400,
+      });
     }
 
     const wantedItem = await prisma.item.findUnique({
@@ -48,6 +50,22 @@ export async function POST(req) {
     // não pode trocar com você mesmo
     if (String(wantedItem.ownerId) === String(requesterId)) {
       return new Response("Você não pode trocar com você mesmo.", { status: 400 });
+    }
+
+    // ✅ ANTI-DUPLICIDADE: se já existe um trade ativo com o mesmo par, reutiliza
+    const existing = await prisma.trade.findFirst({
+      where: {
+        requesterId,
+        ownerId: wantedItem.ownerId,
+        wantedItemId,
+        offeredItemId,
+        status: { in: ["PENDING", "CHAT_ACTIVE", "TRADE_MARKED"] },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return Response.json({ id: existing.id, reused: true }, { status: 200 });
     }
 
     const trade = await prisma.trade.create({
