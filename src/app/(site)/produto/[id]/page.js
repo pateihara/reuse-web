@@ -125,15 +125,6 @@ export default async function ProdutoDetalhePage({ params }) {
                     </span>
                   </div>
                 </div>
-
-                <div className="flex-1">
-                  <p className="font-semibold">{item.owner.name}</p>
-                  <p className="text-sm opacity-70">@{item.owner.username || "usuario"}</p>
-                </div>
-
-                <Link className="btn btn-sm btn-outline" href={`/avaliar-usuario/${item.owner.id}`}>
-                  Avaliar
-                </Link>
               </div>
 
               <div className="mt-3 text-sm opacity-80">
