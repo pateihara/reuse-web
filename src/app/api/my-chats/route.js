@@ -1,11 +1,12 @@
-//src/app/api/my-chats/route.js
+// src/app/api/my-chats/route.js
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import { getUserIdFromRequest } from "@/lib/getUserFromRequest";
 
 export async function GET(req) {
-  const userId = getUserIdFromRequest(req);
+  const userId = await getUserIdFromRequest(req);
   if (!userId) return new Response("Não autenticado", { status: 401 });
 
   const trades = await prisma.trade.findMany({
@@ -42,6 +43,12 @@ export async function GET(req) {
     const isRequester = String(t.requesterId) === String(userId);
     const otherUserName = isRequester ? t.owner?.name : t.requester?.name;
 
+    // ✅ item que faz sentido pro usuário "ver"
+    // - se eu sou requester, o item que eu quero ver normalmente é o wantedItem (do dono)
+    // - se eu sou owner, o item que eu quero ver normalmente é o offeredItem (do requester)
+    const viewItemId = isRequester ? t.wantedItemId : t.offeredItemId;
+    const viewItemStatus = isRequester ? t.wantedItem?.status : t.offeredItem?.status;
+
     const last = t.messages?.[0];
 
     return {
@@ -58,6 +65,9 @@ export async function GET(req) {
 
       offeredItemStatus: t.offeredItem?.status || null,
       wantedItemStatus: t.wantedItem?.status || null,
+
+      viewItemId,
+      viewItemStatus,
 
       lastMessage: last?.content || "",
       lastMessageAt: last?.createdAt || null,

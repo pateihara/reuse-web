@@ -69,9 +69,19 @@ function TradeCard({ t }) {
         </div>
 
         <div className="flex flex-wrap gap-2 justify-end">
-          <Link className="btn btn-sm btn-outline" href={`/produto/${t.wantedItemId}`}>
-            Ver item
-          </Link>
+            <Link
+              className="btn btn-sm btn-outline"
+              href={t.viewItemId ? `/produto/${t.viewItemId}` : "/buscar"}
+              aria-disabled={!t.viewItemId || t.viewItemStatus === "DELETED"}
+              onClick={(e) => {
+                if (!t.viewItemId || t.viewItemStatus === "DELETED") {
+                  e.preventDefault();
+                  alert("Este item não está mais disponível.");
+                }
+              }}
+            >
+              Ver item
+            </Link>
 
           {/* Eu prefiro abrir mesmo quando bloqueado (só leitura),
               mas se quiser bloquear total, mantenha desabilitado. */}
