@@ -66,8 +66,11 @@ function TradeCard({ t }) {
         </div>
 
         <div className="flex flex-wrap gap-2 justify-end pt-1">
-          <Link className="btn btn-sm btn-outline" href={`/produto/${t.wantedItem?.id || ""}`}>
-            Ver desejado
+          <Link
+            className="btn btn-sm btn-outline"
+            href={`/produto/${(t.wantedItem?.id || t.offeredItem?.id) ?? ""}`}
+          >
+            Ver item
           </Link>
           <Link className="btn btn-sm btn-primary" href={`/chat/${t.id}`}>
             Ir pro chat
