@@ -1,7 +1,9 @@
 import dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
+dotenv.config({ path: [".env.local", ".env"] });
 
 import { defineConfig } from "prisma/config";
+
+const databaseUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -10,6 +12,6 @@ export default defineConfig({
     seed: "node ./prisma/seed.js",
   },
   datasource: {
-    url: process.env.POSTGRES_URL ?? "",
+    url: databaseUrl ?? "",
   },
 });

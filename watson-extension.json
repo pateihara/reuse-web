@@ -1,0 +1,71 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ReUse Webhook API",
+    "version": "1.0.0",
+    "description": "API para o bot do Watson executar ações no sistema ReUse (como pausar ou ativar anúncios)."
+  },
+  "servers": [
+    {
+      "url": "https://reuse-web-tau.vercel.app",
+      "description": "Servidor de Produção (Vercel)"
+    }
+  ],
+  "paths": {
+    "/api/watson/execute": {
+      "post": {
+        "summary": "Executa uma ação administrativa",
+        "description": "Envia um comando para o sistema ReUse, junto com o email do usuário.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "Qual comando rodar. Ex: PAUSE_ALL ou ACTIVATE_ALL"
+                  },
+                  "userEmail": {
+                    "type": "string",
+                    "description": "Email do usuário que está pedindo a ação"
+                  },
+                  "apiKey": {
+                    "type": "string",
+                    "description": "A senha secreta (WATSON_API_KEY do seu .env)"
+                  }
+                },
+                "required": [
+                  "action",
+                  "userEmail",
+                  "apiKey"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comando executado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

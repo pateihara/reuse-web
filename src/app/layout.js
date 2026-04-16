@@ -3,6 +3,7 @@ import "./globals.css";
 import { Inter, Lato } from "next/font/google";
 import Header from "./_components/Header";
 import Footer from "./_components/Footer";
+import WatsonChat from "./_components/WatsonChat";
 
 const inter = Inter({ subsets: ["latin"], weight: ["600"], variable: "--font-inter" });
 const lato = Lato({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-lato" });
@@ -15,6 +16,7 @@ export default function RootLayout({ children }) {
         {/* AUMENTEI: header é maior que 80px */}
         <main className="flex-1 pt-28">{children}</main>
         <Footer />
+        <WatsonChat />
       </body>
     </html>
   );

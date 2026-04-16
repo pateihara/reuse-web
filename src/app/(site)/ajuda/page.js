@@ -54,7 +54,23 @@ export default function AjudaPage() {
           <Link className="link" href="/contato">Contato</Link>.
         </p>
 
-        <div className="mt-8 space-y-3">
+        {/* 🤖 SEÇÃO DO WATSON */}
+        <div className="mt-10 bg-primary/10 p-8 rounded-[2.5rem] border border-primary/20 flex flex-col md:flex-row items-center gap-8 shadow-sm">
+          <div className="text-5xl">🤖</div>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-primary mb-2">Conheça o nosso Assistente Virtual</h2>
+            <p className="text-sm opacity-90 leading-relaxed">
+              Desenvolvemos um assistente inteligente com <strong>IBM Watson</strong> capaz de realizar tarefas 
+              para você! Tente pedir para o robô: 
+              <span className="block mt-2 italic">"Pausar todos os meus anúncios" ou "Como faço para trocar um item?".</span>
+            </p>
+          </div>
+          <div className="text-sm border border-primary/30 px-4 py-2 rounded-full font-bold text-primary">
+            CHAT ATIVO 🟢
+          </div>
+        </div>
+
+        <div className="mt-10 space-y-3">
           {faqs.map((f) => (
             <div key={f.q} className="collapse collapse-arrow bg-base-200 rounded-2xl">
               <input type="checkbox" />
