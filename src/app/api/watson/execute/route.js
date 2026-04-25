@@ -1,50 +1,78 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-/**
- * Endpoint de Webhook para o IBM Watson Assistant.
- * Permite que o chatbot execute ações administrativas para o usuário.
- * 
- * Exemplo de Body esperado:
- * {
- *   "action": "PAUSE_ALL",
- *   "userEmail": "ana@reuse.com",
- *   "apiKey": "sua-chave-aqui"
- * }
- */
+const ALLOWED_ACTIONS = new Set(["PAUSE_ALL", "ACTIVATE_ALL", "LIST_MY_ITEMS"]);
+
+function jsonError(message, status = 400) {
+  return NextResponse.json({ ok: false, error: message }, { status });
+}
+
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { action, userEmail, apiKey } = body;
+    const body = await req.json().catch(() => ({}));
+    const action = String(body?.action || "").trim().toUpperCase();
+    const userEmail = String(body?.userEmail || "").trim().toLowerCase();
+    const bodyApiKey = String(body?.apiKey || "").trim();
+    const headerApiKey = String(req.headers.get("x-api-key") || "").trim();
+    const authHeader = String(req.headers.get("authorization") || "").trim();
+    const bearerApiKey = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+    const apiKey = bodyApiKey || headerApiKey || bearerApiKey;
 
-    // 1. Validação de Segurança
-    const secretKey = process.env.WATSON_API_KEY || "reuse-watson-123";
-    if (apiKey !== secretKey) {
-      return NextResponse.json({ error: "Chave de API inválida." }, { status: 401 });
+    if (!action || !userEmail) {
+      return jsonError("action e userEmail sao obrigatorios.", 400);
     }
 
-    // 2. Busca o usuário
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail }
+    if (!ALLOWED_ACTIONS.has(action)) {
+      return jsonError("Acao desconhecida.", 400);
+    }
+
+    const secretKey = String(process.env.WATSON_API_KEY || "").trim();
+    if (!secretKey) {
+      return jsonError("WATSON_API_KEY nao configurada no servidor.", 500);
+    }
+
+    if (!apiKey) {
+      return jsonError("Chave de API nao informada.", 401);
+    }
+
+    if (apiKey !== secretKey) {
+      return jsonError("Chave de API invalida.", 401);
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: userEmail,
+          mode: "insensitive",
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+      },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+      return jsonError("Usuario nao encontrado.", 404);
     }
 
-    // 3. Execução das Ações
     if (action === "PAUSE_ALL") {
       const result = await prisma.item.updateMany({
         where: {
           ownerId: user.id,
-          status: "ACTIVE"
+          status: "ACTIVE",
         },
-        data: { status: "PAUSED" }
+        data: { status: "PAUSED" },
       });
 
-      return NextResponse.json({ 
-        message: `Comando executado: ${result.count} itens foram pausados.`,
-        count: result.count 
+      return NextResponse.json({
+        ok: true,
+        action,
+        userEmail: user.email,
+        count: result.count,
+        message: `${result.count} item(ns) foram pausados.`,
       });
     }
 
@@ -52,21 +80,60 @@ export async function POST(req) {
       const result = await prisma.item.updateMany({
         where: {
           ownerId: user.id,
-          status: "PAUSED"
+          status: "PAUSED",
         },
-        data: { status: "ACTIVE" }
+        data: { status: "ACTIVE" },
       });
 
-      return NextResponse.json({ 
-        message: `Comando executado: ${result.count} itens foram reativados.`,
-        count: result.count 
+      return NextResponse.json({
+        ok: true,
+        action,
+        userEmail: user.email,
+        count: result.count,
+        message: `${result.count} item(ns) foram ativados.`,
       });
     }
 
-    return NextResponse.json({ error: "Ação desconhecida." }, { status: 400 });
+    const items = await prisma.item.findMany({
+      where: {
+        ownerId: user.id,
+        status: { in: ["ACTIVE", "PAUSED", "TRADED"] },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        category: true,
+        condition: true,
+        city: true,
+        state: true,
+        updatedAt: true,
+      },
+    });
 
+    const itemsText =
+      items.length === 0
+        ? "Voce nao possui itens cadastrados."
+        : items
+            .map((item, idx) => {
+              const status = item.status || "UNKNOWN";
+              const title = item.title || "Sem titulo";
+              return `${idx + 1}. ${title} [${status}]`;
+            })
+            .join("\n");
+
+    return NextResponse.json({
+      ok: true,
+      action,
+      userEmail: user.email,
+      count: items.length,
+      items,
+      itemsText,
+      message: `Voce possui ${items.length} item(ns).`,
+    });
   } catch (error) {
     console.error("[WATSON_WEBHOOK_ERROR]", error);
-    return NextResponse.json({ error: "Erro interno ao processar comando." }, { status: 500 });
+    return jsonError("Erro interno ao processar comando.", 500);
   }
 }
